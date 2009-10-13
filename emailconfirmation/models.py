@@ -46,7 +46,7 @@ class EmailAddressManager(models.Manager):
 class EmailAddress(models.Model):
 
     user = models.ForeignKey(User)
-    email = models.EmailField(unique=UNIQUE_EMAIL_ADDRESS_PER_USER)
+    email = models.EmailField()
     verified = models.BooleanField(default=False)
     primary = models.BooleanField(default=False)
 
@@ -91,7 +91,8 @@ class EmailConfirmationManager(models.Manager):
             email_address.save()
             email_confirmed.send(sender=self.model, email_address=email_address)
             # sweep away all unverified email addresses that match
-            EmailAddress.objects.filter(verified=False, email=email_address).all().delete()
+            if UNIQUE_EMAIL_ADDRESS_PER_USER:
+                EmailAddress.objects.filter(verified=False, email=email_address).all().delete()
             return email_address
 
     def send_confirmation(self, email_address):
