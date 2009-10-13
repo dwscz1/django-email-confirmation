@@ -16,6 +16,8 @@ send_mail = get_send_mail()
 
 # this code based in-part on django-registration
 
+UNIQUE_EMAIL_ADDRESS_PER_USER = getattr(settings, 'UNIQUE_EMAIL_ADDRESS_PER_USER', False)
+
 class EmailAddressManager(models.Manager):
 
     def add_email(self, user, email):
@@ -44,7 +46,7 @@ class EmailAddressManager(models.Manager):
 class EmailAddress(models.Model):
 
     user = models.ForeignKey(User)
-    email = models.EmailField()
+    email = models.EmailField(unique=UNIQUE_EMAIL_ADDRESS_PER_USER)
     verified = models.BooleanField(default=False)
     primary = models.BooleanField(default=False)
 
@@ -69,9 +71,10 @@ class EmailAddress(models.Model):
     class Meta:
         verbose_name = _("e-mail address")
         verbose_name_plural = _("e-mail addresses")
-        unique_together = (
-            ("user", "email"),
-        )
+        if not UNIQUE_EMAIL_ADDRESS_PER_USER:
+            unique_together = (
+                ("user", "email"),
+            )
 
 
 class EmailConfirmationManager(models.Manager):
@@ -87,6 +90,8 @@ class EmailConfirmationManager(models.Manager):
             email_address.set_as_primary(conditional=True)
             email_address.save()
             email_confirmed.send(sender=self.model, email_address=email_address)
+            # sweep away all unverified email addresses that match
+            EmailAddress.objects.filter(verified=False, email=email_address).all().delete()
             return email_address
 
     def send_confirmation(self, email_address):
